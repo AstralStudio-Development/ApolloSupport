@@ -1,4 +1,4 @@
-package cn.starry.apollosupport;
+package moe.illusory;
 
 import java.util.UUID;
 

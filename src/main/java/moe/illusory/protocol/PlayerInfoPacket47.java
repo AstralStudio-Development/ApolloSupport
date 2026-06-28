@@ -1,4 +1,4 @@
-package cn.starry.apollosupport.protocol;
+package moe.illusory.protocol;
 
 /** Deprecated compatibility stub. Use DisplayUuidPacketRewriter instead. */
 @Deprecated

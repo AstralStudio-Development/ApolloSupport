@@ -2,7 +2,7 @@ plugins {
     java
 }
 
-group = "cn.starry"
+group = "moe.illusory"
 version = "1.0.0"
 
 java {

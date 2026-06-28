@@ -1,4 +1,4 @@
-package cn.starry.apollosupport.protocol;
+package moe.illusory.protocol;
 
 import io.netty.buffer.ByteBuf;
 

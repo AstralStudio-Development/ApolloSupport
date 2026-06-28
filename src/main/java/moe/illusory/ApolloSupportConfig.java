@@ -1,4 +1,4 @@
-package cn.starry.apollosupport;
+package moe.illusory;
 
 import net.md_5.bungee.config.Configuration;
 

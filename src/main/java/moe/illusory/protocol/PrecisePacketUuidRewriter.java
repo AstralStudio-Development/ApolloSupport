@@ -1,6 +1,6 @@
-package cn.starry.apollosupport.protocol;
+package moe.illusory.protocol;
 
-import cn.starry.apollosupport.UuidMappingService;
+import moe.illusory.UuidMappingService;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;

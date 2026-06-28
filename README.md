@@ -3,95 +3,97 @@
 [![Java](https://img.shields.io/badge/Java-8+-orange.svg)](https://adoptium.net/)
 [![BungeeCord](https://img.shields.io/badge/BungeeCord-1.21--R0.4-blue.svg)](https://www.spigotmc.org/wiki/bungeecord/)
 [![Gradle](https://img.shields.io/badge/Gradle-build-02303A.svg)](https://gradle.org/)
-[![Platform](https://img.shields.io/badge/Platform-Proxy-lightgrey.svg)](#)
+[![Author](https://img.shields.io/badge/Author-AstralStudio-purple.svg)](#)
 
-ApolloSupport is a proxy-side display UUID rewriter for BungeeCord / XCord servers.
+ApolloSupport 是一个用于 BungeeCord / XCord 的代理端显示 UUID 兼容插件。
 
-It lets Lunar Client resolve players by their premium UUID for cosmetic rendering, while keeping the server-side player data UUID untouched.
+它会在不修改服务器内部玩家数据 UUID 的前提下，将客户端显示层中的离线 UUID 映射为正版 UUID，让 Lunar Client 能够按真实正版身份加载玩家饰品。
 
-> Internal player data stays on the offline UUID. Only selected outbound display packets are rewritten.
+> 服务端数据仍使用原本的离线 UUID；ApolloSupport 只改写客户端能看到的显示相关数据包。
 
-## Resources
+## 项目信息
 
-- [Commands](#commands)
-- [Configuration](#configuration)
-- [Status Metrics](#status-metrics)
-- [Building](#building)
-- [Troubleshooting](#troubleshooting)
+| 项目 | 内容 |
+| --- | --- |
+| 插件名 | `ApolloSupport` |
+| 作者 | `AstralStudio` |
+| 主类 | `moe.illusory.ApolloSupportPlugin` |
+| 运行端 | BungeeCord / XCord 代理端 |
+| Java | Java 8+ |
+| 构建工具 | Gradle |
 
-## Why
+## 功能特性
 
-Offline / mixed-mode proxy networks usually identify players with an offline UUID internally. Lunar Client cosmetics, however, are resolved by the player's real premium UUID.
+- 解析并缓存玩家正版 UUID。
+- 支持手动玩家名到正版 UUID 映射。
+- 使用 Netty handler 改写客户端显示层 UUID。
+- 支持 Login、Tab、Tab Remove、实体生成相关 UUID 改写。
+- 不调用 `PendingConnection#setUniqueId()`。
+- 不迁移、不破坏权限、背包、经济、领地等基于 UUID 的玩家数据。
+- 非 Lunar 客户端会在登录宽限期后自动移除重写 handler。
+- 支持 Tab 高频更新节流。
+- 支持 Tab 内容去重。
+- 提供详细运行状态统计。
 
-That means the client may see:
+## 工作原理
+
+离线 / 混合模式网络里，服务器内部通常使用离线 UUID：
 
 ```text
-Server-side UUID: offline UUID
-Lunar profile UUID: premium UUID
+服务器内部 UUID = 离线 UUID
 ```
 
-ApolloSupport bridges this display-layer mismatch by rewriting only the UUIDs that the client sees in selected packets.
+而 Lunar Client 加载玩家真实饰品时需要识别正版 UUID：
 
-It does **not**:
+```text
+Lunar Client 识别 UUID = 正版 UUID
+```
 
-- call `PendingConnection#setUniqueId()`
-- migrate player data
-- change permission, economy, inventory, region, or statistic ownership
-- provide or spoof cosmetic data itself
+ApolloSupport 会维护映射：
 
-Lunar Client still handles cosmetic loading. ApolloSupport only makes sure the client sees the correct player identity.
+```text
+离线 UUID -> 正版 UUID
+```
 
-## Features
+当代理向客户端发送显示相关包时，插件会把包里的离线 UUID 临时改写成正版 UUID。这样 Lunar Client 看到的是正确的正版身份，饰品加载仍然由 Lunar Client 自己完成。
 
-- Premium UUID resolving with local cache.
-- Manual player-name to UUID mappings.
-- Netty-based outbound display UUID rewriting.
-- Login, Tab, Tab remove, and entity spawn UUID handling.
-- Lunar-aware handler cleanup for non-Lunar clients.
-- Tab update deduplication for static Tab layouts.
-- Tab update throttling for high-frequency Tab plugins.
-- Runtime status metrics for packet, UUID, Tab, and entity rewrite counters.
-- Experimental entity type filtering.
+## 改写范围
 
-## Packet Scope
+ApolloSupport 只处理必要的显示相关包，不会扫描所有包内容。
 
-ApolloSupport only targets display-related packets:
-
-| Area | Packet / Object |
+| 类型 | 处理内容 |
 | --- | --- |
-| Login | `LoginSuccess` |
-| Tab | `PlayerListItem` |
-| Tab | `PlayerListItemUpdate` |
-| Tab | `PlayerListItemRemove` |
-| Entity | modern Add Entity UUID field |
+| Login | `LoginSuccess` UUID |
+| Tab | `PlayerListItem` UUID |
+| Tab | `PlayerListItemUpdate` UUID |
+| Tab | `PlayerListItemRemove` UUID |
+| Entity | 实体生成包中的 UUID |
 
-It does not scan every packet payload for UUID-like bytes.
+## 安装
 
-## Installation
-
-1. Build the plugin or download the jar.
-2. Place it in the proxy plugin directory:
+1. 构建或获取插件 jar。
+2. 将 jar 放入代理端插件目录。
 
 ```text
 plugins/ApolloSupport-1.0.0.jar
 ```
 
-3. Start or restart the proxy.
-4. Edit the generated config if needed:
+3. 启动或重启代理端。
+4. 修改生成的配置文件。
 
 ```text
 plugins/ApolloSupport/config.yml
 ```
 
-5. Reload the plugin:
+5. 使用命令重载。
 
 ```text
 /apollosupport reload
 ```
 
-## Configuration
+## 配置
 
-Default configuration:
+默认配置示例：
 
 ```yml
 uuid-resolver:
@@ -112,165 +114,108 @@ manual-mappings: {}
 debug: false
 ```
 
-### UUID Resolver
+### `packet-rewrite.enabled`
 
-```yml
-uuid-resolver:
-  enabled: true
-  request-timeout-millis: 2500
-  cache-minutes: 1440
-```
+是否启用显示 UUID 包改写。关闭后插件只会解析 UUID，不会修复 Lunar 饰品显示。
 
-Controls premium UUID lookup and name cache lifetime.
+### `tab-update-throttle-millis`
 
-### Packet Rewrite
+普通 `PlayerListItemUpdate` 的最短放行间隔，单位毫秒。设置为 `0` 表示关闭节流。
 
-```yml
-packet-rewrite:
-  enabled: true
-```
+### `tab-update-dedupe`
 
-Enables outbound display UUID rewriting. If disabled, ApolloSupport will still be able to resolve UUIDs, but Lunar cosmetics will not be fixed.
+是否启用 Tab 内容去重。当普通 `PlayerListItemUpdate` 的内容和上一条已放行更新完全一致时，插件会直接丢弃重复包。
 
-### Tab Update Dedupe
+### `player-entity-filter`
 
-```yml
-packet-rewrite:
-  tab-update-dedupe: true
-```
+实验选项，默认关闭。只有确认当前代理 / 协议版本的玩家实体 type id 后才建议开启。
 
-Drops repeated `PlayerListItemUpdate` packets when their content fingerprint is unchanged.
+### `manual-mappings`
 
-This is useful for static Tab layouts where the Tab plugin sends frequent duplicate updates.
-
-### Tab Update Throttle
-
-```yml
-packet-rewrite:
-  tab-update-throttle-millis: 250
-```
-
-Limits ordinary `PlayerListItemUpdate` packets per client connection.
-
-Set to `0` to disable throttling:
-
-```yml
-packet-rewrite:
-  tab-update-throttle-millis: 0
-```
-
-For static Tab layouts, values like `1000`, `2000`, or higher may be acceptable.
-
-### Entity Type Filter
-
-```yml
-packet-rewrite:
-  player-entity-filter:
-    enabled: false
-    type-id: -1
-```
-
-Experimental option. Keep it disabled unless you have confirmed the player entity type id for your proxy/protocol mapping.
-
-If this is configured incorrectly, entity cosmetics may stop showing.
-
-### Manual Mappings
+手动映射玩家名到正版 UUID。
 
 ```yml
 manual-mappings:
   Qlickly_: "6ec148d8-a1dc-4827-ad4b-409a40ee86d5"
 ```
 
-Manual mappings support dashed and non-dashed UUID formats.
+支持带横杠和不带横杠的 UUID 格式。
 
-## Commands
+## 命令
 
-| Command | Description |
+| 命令 | 说明 |
 | --- | --- |
-| `/apollosupport status` | Shows resolver, rewrite, Tab, and entity metrics. |
-| `/apollosupport reload` | Reloads the configuration. |
+| `/apollosupport status` | 查看解析、重写、Tab、实体相关统计。 |
+| `/apollosupport reload` | 重载配置。 |
 
-Aliases:
+别名：
 
 ```text
 /asupport
 /lunarcosmetics
 ```
 
-Permission:
+权限：
 
 ```text
 apollosupport.admin
 ```
 
-## Status Metrics
+## 状态统计
 
-`/apollosupport status` exposes runtime counters:
-
-| Metric | Meaning |
+| 字段 | 说明 |
 | --- | --- |
-| `packets` | Successfully rewritten packets. |
-| `uuids` | Successfully rewritten UUID values. |
-| `loginPackets` | Rewritten login packets. |
-| `tabPackets` | Rewritten Tab packets. |
-| `tabItems` | Visited Tab items in rewritten Tab packets. |
-| `tabUpdateDeduped` | Duplicate Tab update packets dropped by content dedupe. |
-| `tabUpdateThrottled` | Tab update packets dropped by throttling. |
-| `entities` | Rewritten entity spawn UUIDs. |
-| `entityTypeSkipped` | Entity packets skipped by experimental type filtering. |
-| `last` | Last successfully rewritten object packet class. |
+| `packets` | 成功改写过 UUID 的包数量。 |
+| `uuids` | 成功改写的 UUID 数量。 |
+| `loginPackets` | 成功改写的登录包数量。 |
+| `tabPackets` | 成功改写的 Tab 包数量。 |
+| `tabItems` | 已处理的 Tab item 数量。 |
+| `tabUpdateDeduped` | 被内容去重丢弃的 Tab update 数量。 |
+| `tabUpdateThrottled` | 被节流丢弃的 Tab update 数量。 |
+| `entities` | 成功改写的实体生成 UUID 数量。 |
+| `entityTypeSkipped` | 被实验实体 type 过滤跳过的实体包数量。 |
+| `last` | 最近一次成功改写的对象包类名。 |
 
-For high-frequency Tab plugins, watch these first:
+## 构建
 
-```text
-tabPackets=
-tabItems=
-tabUpdateDeduped=
-tabUpdateThrottled=
-```
-
-## Building
-
-Windows:
+Windows：
 
 ```bat
 .\gradlew.bat build
 ```
 
-Git Bash / Linux / macOS:
+Git Bash / Linux / macOS：
 
 ```bash
 ./gradlew build
 ```
 
-Build output:
+构建产物：
 
 ```text
 build/libs/ApolloSupport-1.0.0.jar
 ```
 
-## Troubleshooting
+## 故障排查
 
-### Cosmetics do not show
+### Lunar 饰品不显示
 
-Check:
+确认配置：
 
 ```yml
 packet-rewrite:
   enabled: true
 ```
 
-Then run:
+然后查看：
 
 ```text
 /apollosupport status
 ```
 
-Look for non-zero `packets`, `uuids`, and `entities` after players join or enter each other's view.
+### Tab 刷新太频繁
 
-### Tab updates are too frequent
-
-Enable or tune:
+可以启用或调整：
 
 ```yml
 packet-rewrite:
@@ -278,11 +223,9 @@ packet-rewrite:
   tab-update-throttle-millis: 1000
 ```
 
-For static Tab layouts, dedupe should usually remove most duplicate updates.
+### Tab 不更新或显示异常
 
-### Tab does not update correctly
-
-Disable the experimental reductions:
+关闭 Tab 降压功能：
 
 ```yml
 packet-rewrite:
@@ -290,15 +233,15 @@ packet-rewrite:
   tab-update-throttle-millis: 0
 ```
 
-Then reload:
+然后执行：
 
 ```text
 /apollosupport reload
 ```
 
-### Entity cosmetics disappear
+### 实体饰品消失
 
-Keep this disabled unless you know the correct type id:
+保持实验实体过滤关闭：
 
 ```yml
 packet-rewrite:
@@ -306,8 +249,9 @@ packet-rewrite:
     enabled: false
 ```
 
-## Notes
+## 注意事项
 
-- This is a proxy plugin, not a Spigot/Paper backend plugin.
-- Existing generated configs are not overwritten by jar updates. Add new config keys manually when updating.
-- ApolloSupport is a display-layer compatibility tool. It does not replace full premium UUID migration.
+- ApolloSupport 是代理端插件，不是 Spigot / Paper 后端插件。
+- 更新 jar 不会覆盖已经生成的 `plugins/ApolloSupport/config.yml`。
+- 如果新增配置项没有生效，请手动补充到旧配置文件中。
+- 插件只负责显示层 UUID 兼容，不等同于完整正版 UUID 数据迁移。

@@ -1,4 +1,4 @@
-package cn.starry.apollosupport;
+package moe.illusory;
 
 final class RewriteServiceFactory {
     private RewriteServiceFactory() {

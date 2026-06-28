@@ -1,4 +1,4 @@
-package cn.starry.apollosupport;
+package moe.illusory;
 
 final class NoopRewriteService implements RewriteService {
     private final String statusMessage;

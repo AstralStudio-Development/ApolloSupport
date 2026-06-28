@@ -1,6 +1,6 @@
-package cn.starry.apollosupport.protocol;
+package moe.illusory.protocol;
 
-import cn.starry.apollosupport.UuidMappingService;
+import moe.illusory.UuidMappingService;
 import io.netty.buffer.ByteBuf;
 
 import java.util.UUID;

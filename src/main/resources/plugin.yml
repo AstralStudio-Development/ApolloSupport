@@ -1,8 +1,8 @@
 name: ApolloSupport
-main: cn.starry.apollosupport.ApolloSupportPlugin
+main: moe.illusory.ApolloSupportPlugin
 version: ${version}
-author: Starry
-description: Rewrites display UUIDs with an internal Netty handler so Lunar Client can show cosmetics without changing player data UUIDs.
+author: AstralStudio
+description: Bridges offline-mode player identities to premium display UUIDs so Lunar Client can render cosmetics without changing server-side player data.
 commands:
   apollosupport:
     aliases:

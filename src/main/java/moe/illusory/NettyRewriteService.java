@@ -1,7 +1,7 @@
-package cn.starry.apollosupport;
+package moe.illusory;
 
-import cn.starry.apollosupport.protocol.EntitySpawnPacketRewriter;
-import cn.starry.apollosupport.protocol.PrecisePacketUuidRewriter;
+import moe.illusory.protocol.EntitySpawnPacketRewriter;
+import moe.illusory.protocol.PrecisePacketUuidRewriter;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;

@@ -1,4 +1,4 @@
-package cn.starry.apollosupport;
+package moe.illusory;
 
 /**
  * Deprecated compatibility stub. ApolloSupport no longer depends on Protocolize.
