@@ -1,0 +1,30 @@
+# ApolloSupport
+#
+# 代理内部仍使用离线 UUID，客户端显示层改写为正版 UUID，
+# 让 Lunar Client 能按正版 UUID 加载真实玩家饰品。
+# 不会调用 PendingConnection#setUniqueId()，不会改权限/背包/经济数据 UUID。
+
+uuid-resolver:
+  enabled: true
+  request-timeout-millis: 2500
+  cache-minutes: 1440
+
+packet-rewrite:
+  enabled: true
+  # Tab 高频降压：普通 PlayerListItemUpdate 最短放行间隔，0 表示关闭。
+  tab-update-throttle-millis: 250
+  # Tab 内容去重：重复内容的普通 PlayerListItemUpdate 直接丢弃。
+  tab-update-dedupe: true
+  # 实验选项：按 entity type 过滤实体生成包，默认关闭以避免协议映射不匹配导致饰品消失。
+  # 如果确认当前 XCord/Bungee 的玩家实体 type id，可开启并填写 type-id。
+  player-entity-filter:
+    enabled: false
+    type-id: -1
+
+# 手动映射玩家名到正版 UUID，可用带横杠或不带横杠格式。
+# 示例：
+# manual-mappings:
+#   Qlickly_: "6ec148d8-a1dc-4827-ad4b-409a40ee86d5"
+manual-mappings: {}
+
+debug: false

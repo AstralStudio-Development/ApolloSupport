@@ -1,0 +1,16 @@
+name: ApolloSupport
+main: cn.starry.apollosupport.ApolloSupportPlugin
+version: ${version}
+author: Starry
+description: Rewrites display UUIDs with an internal Netty handler so Lunar Client can show cosmetics without changing player data UUIDs.
+commands:
+  apollosupport:
+    aliases:
+      - asupport
+      - lunarcosmetics
+    permission: apollosupport.admin
+    description: ApolloSupport administration command.
+permissions:
+  apollosupport.admin:
+    description: Allows reloading and inspecting ApolloSupport.
+    default: op

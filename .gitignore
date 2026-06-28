@@ -1,0 +1,43 @@
+# Gradle
+.gradle/
+build/
+
+# Java build outputs
+out/
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+
+# OS / filesystem
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Runtime / local config
+run/
+server/
+plugins/
+*.local
+*.tmp
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
