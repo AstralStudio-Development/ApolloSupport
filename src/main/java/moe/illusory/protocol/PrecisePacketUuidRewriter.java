@@ -8,9 +8,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 
 public final class PrecisePacketUuidRewriter {
     private final UuidMappingService uuidMappingService;
+    private final BooleanSupplier rewriteLoginSuccessEnabled;
     private final Map<Class<?>, PacketPlan> planCache = new ConcurrentHashMap<>();
     private final AtomicLong rewrittenUuidCount = new AtomicLong();
     private final AtomicLong loginPackets = new AtomicLong();
@@ -18,8 +20,12 @@ public final class PrecisePacketUuidRewriter {
     private final AtomicLong tabItems = new AtomicLong();
     private volatile String lastPacketClass = "<none>";
 
-    public PrecisePacketUuidRewriter(UuidMappingService uuidMappingService) {
+    public PrecisePacketUuidRewriter(
+            UuidMappingService uuidMappingService,
+            BooleanSupplier rewriteLoginSuccessEnabled
+    ) {
         this.uuidMappingService = uuidMappingService;
+        this.rewriteLoginSuccessEnabled = rewriteLoginSuccessEnabled;
     }
 
     public boolean rewrite(Object packet) {
@@ -30,6 +36,9 @@ public final class PrecisePacketUuidRewriter {
         Class<?> packetClass = packet.getClass();
         String name = packetClass.getName();
         if (!isTargetPacket(name)) {
+            return false;
+        }
+        if (name.endsWith(".LoginSuccess") && !rewriteLoginSuccessEnabled.getAsBoolean()) {
             return false;
         }
 

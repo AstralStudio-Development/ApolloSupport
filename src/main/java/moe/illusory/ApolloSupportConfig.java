@@ -13,6 +13,7 @@ final class ApolloSupportConfig {
     private final int requestTimeoutMillis;
     private final long cacheMillis;
     private final boolean packetRewriteEnabled;
+    private final boolean rewriteLoginSuccessEnabled;
     private final int tabUpdateThrottleMillis;
     private final boolean tabUpdateDedupeEnabled;
     private final boolean playerEntityFilterEnabled;
@@ -25,6 +26,7 @@ final class ApolloSupportConfig {
             int requestTimeoutMillis,
             long cacheMillis,
             boolean packetRewriteEnabled,
+            boolean rewriteLoginSuccessEnabled,
             int tabUpdateThrottleMillis,
             boolean tabUpdateDedupeEnabled,
             boolean playerEntityFilterEnabled,
@@ -36,6 +38,7 @@ final class ApolloSupportConfig {
         this.requestTimeoutMillis = requestTimeoutMillis;
         this.cacheMillis = cacheMillis;
         this.packetRewriteEnabled = packetRewriteEnabled;
+        this.rewriteLoginSuccessEnabled = rewriteLoginSuccessEnabled;
         this.tabUpdateThrottleMillis = tabUpdateThrottleMillis;
         this.tabUpdateDedupeEnabled = tabUpdateDedupeEnabled;
         this.playerEntityFilterEnabled = playerEntityFilterEnabled;
@@ -50,6 +53,7 @@ final class ApolloSupportConfig {
                 Math.max(500, configuration.getInt("uuid-resolver.request-timeout-millis", 2500)),
                 Math.max(60000L, configuration.getLong("uuid-resolver.cache-minutes", 1440L) * 60_000L),
                 configuration.getBoolean("packet-rewrite.enabled", true),
+                configuration.getBoolean("packet-rewrite.rewrite-login-success", true),
                 Math.max(0, configuration.getInt("packet-rewrite.tab-update-throttle-millis", 0)),
                 configuration.getBoolean("packet-rewrite.tab-update-dedupe", true),
                 configuration.getBoolean("packet-rewrite.player-entity-filter.enabled", false),
@@ -106,6 +110,10 @@ final class ApolloSupportConfig {
 
     boolean isPacketRewriteEnabled() {
         return packetRewriteEnabled;
+    }
+
+    boolean isRewriteLoginSuccessEnabled() {
+        return rewriteLoginSuccessEnabled;
     }
 
     int getTabUpdateThrottleMillis() {

@@ -103,6 +103,7 @@ uuid-resolver:
 
 packet-rewrite:
   enabled: true
+  rewrite-login-success: true
   tab-update-throttle-millis: 250
   tab-update-dedupe: true
   player-entity-filter:
@@ -117,6 +118,12 @@ debug: false
 ### `packet-rewrite.enabled`
 
 是否启用显示 UUID 包改写。关闭后插件只会解析 UUID，不会修复 Lunar 饰品显示。
+
+### `rewrite-login-success`
+
+是否改写 `LoginSuccess` 中客户端自己的 UUID。默认 `true`，用于完整显示 UUID 链路。
+
+如果后端聊天插件使用了 `AsyncPlayerChatEvent.setFormat()` 等遗留聊天 API 且未正确处理 signed chat，可能需要在后端聊天插件侧改为 unsigned/system chat 广播方式，而不是关闭此选项。
 
 ### `tab-update-throttle-millis`
 

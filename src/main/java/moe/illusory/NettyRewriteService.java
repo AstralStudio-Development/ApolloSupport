@@ -39,7 +39,10 @@ final class NettyRewriteService implements RewriteService {
     NettyRewriteService(ApolloSupportPlugin plugin, UuidMappingService uuidMappingService) {
         this.plugin = plugin;
         this.uuidMappingService = uuidMappingService;
-        this.packetRewriter = new PrecisePacketUuidRewriter(uuidMappingService);
+        this.packetRewriter = new PrecisePacketUuidRewriter(
+                uuidMappingService,
+                () -> plugin.getLocalConfig().isRewriteLoginSuccessEnabled()
+        );
         this.entitySpawnRewriter = new EntitySpawnPacketRewriter(
                 uuidMappingService,
                 () -> plugin.getLocalConfig().isPlayerEntityFilterEnabled(),
@@ -243,7 +246,6 @@ final class NettyRewriteService implements RewriteService {
                     rewrittenUuids.incrementAndGet();
                 }
             } catch (Throwable ignored) {
-                // Never break the player's connection because of entity UUID rewriting.
             }
             super.write(ctx, msg, promise);
         }
@@ -304,7 +306,6 @@ final class NettyRewriteService implements RewriteService {
                     rewrittenUuids.addAndGet(packetRewriter.rewrittenUuidCount() - before);
                 }
             } catch (Throwable ignored) {
-                // Never break the player's connection because of cosmetic display rewriting.
             }
             super.write(ctx, msg, promise);
         }
@@ -313,7 +314,6 @@ final class NettyRewriteService implements RewriteService {
             if (!tabUpdateDedupeEnabled.getAsBoolean() || !isThrottleableTabUpdate(msg)) {
                 return false;
             }
-
             Long fingerprint = tabUpdateFingerprint(msg);
             if (fingerprint == null) {
                 return false;

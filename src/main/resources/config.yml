@@ -11,6 +11,8 @@ uuid-resolver:
 
 packet-rewrite:
   enabled: true
+  # 完整显示 UUID 链路：改写客户端自己的 LoginSuccess UUID。
+  rewrite-login-success: true
   # Tab 高频降压：普通 PlayerListItemUpdate 最短放行间隔，0 表示关闭。
   tab-update-throttle-millis: 250
   # Tab 内容去重：重复内容的普通 PlayerListItemUpdate 直接丢弃。
