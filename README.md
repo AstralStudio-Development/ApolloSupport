@@ -24,7 +24,7 @@ ApolloSupport 是一个用于 BungeeCord / XCord 的代理端显示 UUID 兼容�
 
 ## 功能特性
 
-- 解析并缓存玩家正版 UUID。
+- 在有界后台线程池解析显示用正版 UUID，按名字合并并发请求，并缓存失败与来源限流状态。
 - 支持手动玩家名到正版 UUID 映射。
 - 使用 Netty handler 改写客户端显示层 UUID。
 - 支持 Login、Tab、Tab Remove、实体生成相关 UUID 改写。
@@ -100,6 +100,9 @@ uuid-resolver:
   enabled: true
   request-timeout-millis: 2500
   cache-minutes: 1440
+  failure-cache-seconds: 60
+  no-profile-cache-seconds: 600
+  rate-limit-backoff-seconds: 60
 
 packet-rewrite:
   enabled: true
@@ -115,13 +118,25 @@ manual-mappings: {}
 debug: false
 ```
 
+### 解析时机与认证联动
+
+`LoginEvent` 只使用已有正缓存或手动映射，不执行或等待 HTTP，也不为冷名字排队。认证就绪后的 `PostLogin` / `ServerConnected` 才发起后台查询（固定 2 个线程、最多 128 个排队名字，队满直接失败缓存，绝不由登录线程执行）。同名大小写变体共享一次查询。
+
+首次查询完成后，只能影响之后发送的显示数据包；已经发送的 `LoginSuccess` 或 Tab 包不会被补发。要改写客户端自己的登录 UUID，需要该次连接发送 `LoginSuccess` 前已有缓存/手动映射，冷缓存首次连接不能保证完整自身饰品显示。
+
+检测到 KyokouAuth 时，仅调用其公开只读 `isTemporaryConnection(PendingConnection)` / `isAuthenticated(ProxiedPlayer)` API：临时验证连接不建立显示映射；后续网络查询等待稳定 Profile 且完成认证。成功进入真实后端触发 `ServerConnected` 后继续处理。API 缺失或失败时保守跳过该认证插件连接的显示映射，仅告警一次；未安装 KyokouAuth 的离线代理仍按原用途工作。
+
+这些 API 和名字查档均不授予认证、角色或权限。ApolloSupport 不修改原生连接 UUID、后端转发、权限或存档 UUID，也不把离线占位 UUID 当成正版身份依据。
+
+`failure-cache-seconds` 缓存网络/服务失败和 HTTP 400；400 不证明玩家不存在，也不继续向其余来源发送同一无效请求。HTTP 204/404 缓存 `no-profile-cache-seconds`，不继续回退。429/503 对来源执行指数退避（基础 `rate-limit-backoff-seconds`），支持 `Retry-After` 秒数及 HTTP 日期；更长的服务端等待时间优先，同来源其他名字也遵守。所有 HTTP 都只用名字，不传入离线/XUID UUID。
+
 ### `packet-rewrite.enabled`
 
 是否启用显示 UUID 包改写。关闭后插件只会解析 UUID，不会修复 Lunar 饰品显示。
 
 ### `rewrite-login-success`
 
-是否改写 `LoginSuccess` 中客户端自己的 UUID。默认 `true`，用于完整显示 UUID 链路。
+是否改写 `LoginSuccess` 中客户端自己的显示 UUID。默认 `true`，但只对非临时连接使用发送前已存在的正缓存/手动映射；不会等待首次网络查询。改写原位 UUID 字段，保留其余原生包字段，不重建登录包或扫描任意 UUID 字节。
 
 如果后端聊天插件使用了 `AsyncPlayerChatEvent.setFormat()` 等遗留聊天 API 且未正确处理 signed chat，可能需要在后端聊天插件侧改为 unsigned/system chat 广播方式，而不是关闭此选项。
 
@@ -154,6 +169,7 @@ manual-mappings:
 | --- | --- |
 | `/apollosupport status` | 查看解析、重写、Tab、实体相关统计。 |
 | `/apollosupport reload` | 重载配置。 |
+| `/apollosupport resolve <玩家>` | 仅为认证就绪的在线稳定连接异步解析显示映射；不能补发已发送的登录包。 |
 
 别名：
 

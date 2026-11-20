@@ -61,15 +61,28 @@ final class ApolloSupportCommand extends Command {
             return;
         }
 
-        Optional<UUID> premiumUuid = plugin.getUuidMappingService().resolveAndRemember(proxiedPlayer.getName(), proxiedPlayer.getUniqueId());
-        if (premiumUuid.isPresent()) {
-            if (plugin.getLocalConfig().isPacketRewriteEnabled()) {
-                plugin.getRewriteService().inject(proxiedPlayer);
-            }
-            send(sender, ChatColor.GREEN + "已解析 " + proxiedPlayer.getName() + " 的显示 UUID: " + premiumUuid.get());
-        } else {
-            send(sender, ChatColor.RED + "未能解析 " + proxiedPlayer.getName() + " 的正版 UUID。");
+        if (!plugin.getAuthenticationBridge().mayUsePlayerDisplay(proxiedPlayer)) {
+            send(sender, ChatColor.RED + "玩家仍在临时验证或未完成认证，跳过显示映射。");
+            return;
         }
+        UUID nativeUuid = proxiedPlayer.getUniqueId();
+        String nativeName = proxiedPlayer.getName();
+        plugin.getUuidMappingService().resolvePremiumUuidAsync(nativeName).thenAccept(resolved -> {
+            if (!proxiedPlayer.isConnected() || !nativeUuid.equals(proxiedPlayer.getUniqueId())
+                    || !plugin.getAuthenticationBridge().mayUsePlayerDisplay(proxiedPlayer)) {
+                send(sender, ChatColor.RED + "连接身份状态已改变，未应用显示映射。");
+                return;
+            }
+            Optional<UUID> premiumUuid = plugin.getUuidMappingService().rememberCachedMapping(nativeName, nativeUuid);
+            if (premiumUuid.isPresent()) {
+                if (plugin.getLocalConfig().isPacketRewriteEnabled()) {
+                    plugin.getRewriteService().inject(proxiedPlayer);
+                }
+                send(sender, ChatColor.GREEN + "已解析 " + nativeName + " 的显示 UUID: " + premiumUuid.get());
+            } else {
+                send(sender, ChatColor.RED + "未能解析 " + nativeName + " 的显示 UUID（失败缓存或来源退避时不会立即重试）。");
+            }
+        });
     }
 
     private void sendStatus(CommandSender sender, String playerName) {
@@ -87,7 +100,7 @@ final class ApolloSupportCommand extends Command {
         }
         send(sender, ChatColor.GRAY + "- 已缓存名称 UUID: " + (uuidMappingService == null ? 0 : uuidMappingService.cachedNameCount()));
         send(sender, ChatColor.GRAY + "- 已映射在线 UUID: " + (uuidMappingService == null ? 0 : uuidMappingService.mappedOfflineUuidCount()));
-        send(sender, ChatColor.GRAY + "- 重写模式: 协议无关 UUID 字节替换，适配 1.21.11 等新版协议");
+        send(sender, ChatColor.GRAY + "- 重写模式: 原生 Login/Tab UUID 字段与限定实体包布局；不扫描任意 UUID 字节");
 
         if (playerName == null || playerName.isEmpty()) {
             return;

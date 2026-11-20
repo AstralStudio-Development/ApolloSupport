@@ -16,6 +16,8 @@ tasks.withType<JavaCompile>().configureEach {
 
 dependencies {
     compileOnly("net.md-5:bungeecord-api:1.21-R0.4")
+    testImplementation("net.md-5:bungeecord-api:1.21-R0.4")
+    testImplementation("junit:junit:4.13.2")
 }
 
 tasks.processResources {

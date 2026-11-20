@@ -12,6 +12,9 @@ final class ApolloSupportConfig {
     private final boolean uuidResolverEnabled;
     private final int requestTimeoutMillis;
     private final long cacheMillis;
+    private final long failureCacheMillis;
+    private final long noProfileCacheMillis;
+    private final long rateLimitBackoffMillis;
     private final boolean packetRewriteEnabled;
     private final boolean rewriteLoginSuccessEnabled;
     private final int tabUpdateThrottleMillis;
@@ -25,6 +28,9 @@ final class ApolloSupportConfig {
             boolean uuidResolverEnabled,
             int requestTimeoutMillis,
             long cacheMillis,
+            long failureCacheMillis,
+            long noProfileCacheMillis,
+            long rateLimitBackoffMillis,
             boolean packetRewriteEnabled,
             boolean rewriteLoginSuccessEnabled,
             int tabUpdateThrottleMillis,
@@ -37,6 +43,9 @@ final class ApolloSupportConfig {
         this.uuidResolverEnabled = uuidResolverEnabled;
         this.requestTimeoutMillis = requestTimeoutMillis;
         this.cacheMillis = cacheMillis;
+        this.failureCacheMillis = failureCacheMillis;
+        this.noProfileCacheMillis = noProfileCacheMillis;
+        this.rateLimitBackoffMillis = rateLimitBackoffMillis;
         this.packetRewriteEnabled = packetRewriteEnabled;
         this.rewriteLoginSuccessEnabled = rewriteLoginSuccessEnabled;
         this.tabUpdateThrottleMillis = tabUpdateThrottleMillis;
@@ -52,6 +61,9 @@ final class ApolloSupportConfig {
                 configuration.getBoolean("uuid-resolver.enabled", true),
                 Math.max(500, configuration.getInt("uuid-resolver.request-timeout-millis", 2500)),
                 Math.max(60000L, configuration.getLong("uuid-resolver.cache-minutes", 1440L) * 60_000L),
+                Math.max(1000L, configuration.getLong("uuid-resolver.failure-cache-seconds", 60L) * 1000L),
+                Math.max(1000L, configuration.getLong("uuid-resolver.no-profile-cache-seconds", 600L) * 1000L),
+                Math.max(1000L, configuration.getLong("uuid-resolver.rate-limit-backoff-seconds", 60L) * 1000L),
                 configuration.getBoolean("packet-rewrite.enabled", true),
                 configuration.getBoolean("packet-rewrite.rewrite-login-success", true),
                 Math.max(0, configuration.getInt("packet-rewrite.tab-update-throttle-millis", 0)),
@@ -107,6 +119,12 @@ final class ApolloSupportConfig {
     long getCacheMillis() {
         return cacheMillis;
     }
+
+    long getFailureCacheMillis() { return failureCacheMillis; }
+
+    long getNoProfileCacheMillis() { return noProfileCacheMillis; }
+
+    long getRateLimitBackoffMillis() { return rateLimitBackoffMillis; }
 
     boolean isPacketRewriteEnabled() {
         return packetRewriteEnabled;

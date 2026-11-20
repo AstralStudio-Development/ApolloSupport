@@ -25,26 +25,42 @@ public final class LoginListener implements Listener {
     private final ApolloSupportPlugin plugin;
     private final UuidMappingService uuidMappingService;
     private final RewriteService rewriteService;
+    private final AuthenticationBridge authentication;
+    private final java.util.function.Supplier<ApolloSupportConfig> configuration;
     private final Set<UUID> lunarPlayers = ConcurrentHashMap.newKeySet();
     private final Set<UUID> lunarDetectionGrace = ConcurrentHashMap.newKeySet();
+    private final Set<ProxiedPlayer> displaySessions = ConcurrentHashMap.newKeySet();
 
     LoginListener(ApolloSupportPlugin plugin, UuidMappingService uuidMappingService, RewriteService rewriteService) {
+        this(plugin, uuidMappingService, rewriteService,
+                plugin.getAuthenticationBridge(),
+                plugin::getLocalConfig);
+    }
+
+    LoginListener(ApolloSupportPlugin plugin, UuidMappingService uuidMappingService, RewriteService rewriteService,
+                  AuthenticationBridge authentication, java.util.function.Supplier<ApolloSupportConfig> configuration) {
         this.plugin = plugin;
         this.uuidMappingService = uuidMappingService;
         this.rewriteService = rewriteService;
+        this.authentication = authentication;
+        this.configuration = configuration;
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onLogin(LoginEvent event) {
-        if (!plugin.getLocalConfig().isPacketRewriteEnabled()) {
+        if (event.isCancelled() || !configuration.get().isPacketRewriteEnabled()
+                || !authentication.mayUseLoginDisplay(event.getConnection())) {
             return;
         }
 
         PendingConnection connection = event.getConnection();
         String playerName = connection.getName();
         UUID offlineUuid = connection.getUniqueId();
+        if (offlineUuid == null) {
+            return;
+        }
         lunarDetectionGrace.add(offlineUuid);
-        Optional<UUID> premiumUuid = uuidMappingService.resolveAndRemember(playerName, offlineUuid);
+        Optional<UUID> premiumUuid = uuidMappingService.rememberCachedMapping(playerName, offlineUuid);
         if (premiumUuid.isPresent()) {
             rewriteService.inject(connection, playerName, offlineUuid);
         }
@@ -52,16 +68,21 @@ public final class LoginListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPostLogin(PostLoginEvent event) {
-        resolveAsync(event.getPlayer(), true);
-        scheduleNonLunarCleanup(event.getPlayer());
+        ProxiedPlayer player = event.getPlayer();
+        if (!configuration.get().isPacketRewriteEnabled() || !authentication.mayUsePlayerDisplay(player)) {
+            return;
+        }
+        startDisplaySession(player);
+        resolveAsync(player, true);
     }
 
     @EventHandler
     public void onServerConnected(ServerConnectedEvent event) {
         ProxiedPlayer player = event.getPlayer();
-        if (!plugin.getLocalConfig().isPacketRewriteEnabled()) {
+        if (!configuration.get().isPacketRewriteEnabled() || !authentication.mayUsePlayerDisplay(player)) {
             return;
         }
+        startDisplaySession(player);
 
         if (uuidMappingService.premiumByOffline(player.getUniqueId()).isPresent()) {
             if (shouldKeepRewriteHandler(player.getUniqueId())) {
@@ -76,14 +97,15 @@ public final class LoginListener implements Listener {
     @EventHandler
     public void onPluginMessage(PluginMessageEvent event) {
         ProxiedPlayer player = pluginMessagePlayer(event);
-        if (player == null || !isLunarPluginMessage(event.getTag(), event.getData())) {
+        if (player == null || !authentication.mayUsePlayerDisplay(player)
+                || !isLunarPluginMessage(event.getTag(), event.getData())) {
             return;
         }
 
         UUID offlineUuid = player.getUniqueId();
         lunarPlayers.add(offlineUuid);
         lunarDetectionGrace.remove(offlineUuid);
-        if (plugin.getLocalConfig().isPacketRewriteEnabled() && uuidMappingService.premiumByOffline(offlineUuid).isPresent()) {
+        if (configuration.get().isPacketRewriteEnabled() && uuidMappingService.premiumByOffline(offlineUuid).isPresent()) {
             rewriteService.inject(player);
         }
     }
@@ -91,6 +113,7 @@ public final class LoginListener implements Listener {
     @EventHandler
     public void onDisconnect(PlayerDisconnectEvent event) {
         UUID offlineUuid = event.getPlayer().getUniqueId();
+        displaySessions.remove(event.getPlayer());
         lunarPlayers.remove(offlineUuid);
         lunarDetectionGrace.remove(offlineUuid);
         rewriteService.uninject(event.getPlayer());
@@ -103,22 +126,32 @@ public final class LoginListener implements Listener {
     }
 
     private void resolveAsync(ProxiedPlayer player, boolean injectAfterResolve) {
-        ProxyServer.getInstance().getScheduler().runAsync(plugin, () -> {
-            if (!player.isConnected()) {
+        if (!player.isConnected() || !authentication.mayUsePlayerDisplay(player)) {
+            return;
+        }
+        UUID nativeUuid = player.getUniqueId();
+        String playerName = player.getName();
+        uuidMappingService.resolvePremiumUuidAsync(playerName).thenAccept(resolved -> {
+            if (!player.isConnected() || !nativeUuid.equals(player.getUniqueId())
+                    || !configuration.get().isPacketRewriteEnabled() || !authentication.mayUsePlayerDisplay(player)) {
                 return;
             }
-            uuidMappingService.resolveAndRemember(player.getName(), player.getUniqueId());
-            if (injectAfterResolve
-                    && player.isConnected()
-                    && plugin.getLocalConfig().isPacketRewriteEnabled()
-                    && shouldKeepRewriteHandler(player.getUniqueId())) {
+            Optional<UUID> mapped = uuidMappingService.rememberCachedMapping(playerName, nativeUuid);
+            if (mapped.isPresent() && injectAfterResolve && shouldKeepRewriteHandler(nativeUuid)) {
                 rewriteService.inject(player);
             }
         });
     }
 
+    private void startDisplaySession(ProxiedPlayer player) {
+        if (displaySessions.add(player)) {
+            lunarDetectionGrace.add(player.getUniqueId());
+            scheduleNonLunarCleanup(player);
+        }
+    }
+
     private void scheduleNonLunarCleanup(ProxiedPlayer player) {
-        if (!plugin.getLocalConfig().isPacketRewriteEnabled()) {
+        if (!configuration.get().isPacketRewriteEnabled()) {
             return;
         }
         UUID offlineUuid = player.getUniqueId();

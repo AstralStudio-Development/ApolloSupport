@@ -16,6 +16,7 @@ public final class ApolloSupportPlugin extends Plugin {
     private UuidMappingService uuidMappingService;
     private CosmeticSyncService cosmeticSyncService;
     private RewriteService rewriteService;
+    private AuthenticationBridge authenticationBridge;
     private ApolloSupportConfig config;
 
     @Override
@@ -27,6 +28,7 @@ public final class ApolloSupportPlugin extends Plugin {
             return;
         }
 
+        this.authenticationBridge = new AuthenticationBridge(() -> getProxy().getPluginManager().getPlugin("KyokouAuth"), getLogger());
         this.uuidMappingService = new UuidMappingService(this, config);
         this.cosmeticSyncService = new CosmeticSyncService(uuidMappingService);
         this.rewriteService = RewriteServiceFactory.create(this, uuidMappingService);
@@ -46,6 +48,9 @@ public final class ApolloSupportPlugin extends Plugin {
 
     @Override
     public void onDisable() {
+        if (uuidMappingService != null) {
+            uuidMappingService.close();
+        }
         getProxy().getScheduler().cancel(this);
     }
 
@@ -60,6 +65,10 @@ public final class ApolloSupportPlugin extends Plugin {
         if (rewriteService != null && config.isPacketRewriteEnabled()) {
             rewriteService.register();
         }
+    }
+
+    AuthenticationBridge getAuthenticationBridge() {
+        return authenticationBridge;
     }
 
     CosmeticSyncService getCosmeticSyncService() {

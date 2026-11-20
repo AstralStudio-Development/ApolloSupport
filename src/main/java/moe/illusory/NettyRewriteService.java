@@ -11,6 +11,7 @@ import io.netty.channel.ChannelPromise;
 import io.netty.util.ReferenceCountUtil;
 import net.md_5.bungee.api.connection.PendingConnection;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
+import net.md_5.bungee.protocol.MinecraftEncoder;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -27,6 +28,7 @@ final class NettyRewriteService implements RewriteService {
     private static final String RAW_HANDLER_NAME = "apollo-support-display-uuid-raw";
     private final ApolloSupportPlugin plugin;
     private final UuidMappingService uuidMappingService;
+    private final java.util.function.Supplier<ApolloSupportConfig> configuration;
     private final Map<UUID, String> injectedPlayers = new ConcurrentHashMap<>();
     private final AtomicLong rewrittenPackets = new AtomicLong();
     private final AtomicLong rewrittenUuids = new AtomicLong();
@@ -37,16 +39,22 @@ final class NettyRewriteService implements RewriteService {
     private volatile String lastStatus = "Netty handler not injected yet";
 
     NettyRewriteService(ApolloSupportPlugin plugin, UuidMappingService uuidMappingService) {
+        this(plugin, uuidMappingService, plugin::getLocalConfig);
+    }
+
+    NettyRewriteService(ApolloSupportPlugin plugin, UuidMappingService uuidMappingService,
+                        java.util.function.Supplier<ApolloSupportConfig> configuration) {
         this.plugin = plugin;
         this.uuidMappingService = uuidMappingService;
+        this.configuration = configuration;
         this.packetRewriter = new PrecisePacketUuidRewriter(
                 uuidMappingService,
-                () -> plugin.getLocalConfig().isRewriteLoginSuccessEnabled()
+                () -> configuration.get().isRewriteLoginSuccessEnabled()
         );
         this.entitySpawnRewriter = new EntitySpawnPacketRewriter(
                 uuidMappingService,
-                () -> plugin.getLocalConfig().isPlayerEntityFilterEnabled(),
-                () -> plugin.getLocalConfig().getPlayerEntityTypeId()
+                () -> configuration.get().isPlayerEntityFilterEnabled(),
+                () -> configuration.get().getPlayerEntityTypeId()
         );
     }
 
@@ -84,8 +92,8 @@ final class NettyRewriteService implements RewriteService {
                             rewrittenUuids,
                             tabUpdateDeduped,
                             tabUpdateThrottled,
-                            () -> plugin.getLocalConfig().isTabUpdateDedupeEnabled(),
-                            () -> plugin.getLocalConfig().getTabUpdateThrottleMillis()
+                            () -> configuration.get().isTabUpdateDedupeEnabled(),
+                            () -> configuration.get().getTabUpdateThrottleMillis()
                     );
                     if (anchor != null) {
                         pipeline.addAfter(anchor, OBJECT_HANDLER_NAME, objectHandler);
@@ -162,9 +170,10 @@ final class NettyRewriteService implements RewriteService {
     }
 
     private static String findPacketEncoder(ChannelPipeline pipeline) {
+        // Outbound traverses tail -> head. Object rewriting must run before the native packet
+        // encoder, not before an earlier frame/compression/Via byte encoder with a similar name.
         for (String name : pipeline.names()) {
-            String lower = name.toLowerCase(java.util.Locale.ROOT);
-            if (lower.contains("encoder") || lower.contains("packet-encoder") || lower.contains("minecraft-encoder")) {
+            if (pipeline.get(name) instanceof MinecraftEncoder) {
                 return name;
             }
         }
