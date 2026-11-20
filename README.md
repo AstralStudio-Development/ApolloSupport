@@ -75,7 +75,7 @@ ApolloSupport 只处理必要的显示相关包，不会扫描所有包内容。
 2. 将 jar 放入代理端插件目录。
 
 ```text
-plugins/ApolloSupport-1.0.0.jar
+plugins/ApolloSupport-1.0.1.jar
 ```
 
 3. 启动或重启代理端。
@@ -216,7 +216,7 @@ Git Bash / Linux / macOS：
 构建产物：
 
 ```text
-build/libs/ApolloSupport-1.0.0.jar
+build/libs/ApolloSupport-1.0.1.jar
 ```
 
 ## 故障排查

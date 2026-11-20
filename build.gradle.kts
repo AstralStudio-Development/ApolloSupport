@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "moe.illusory"
-version = "1.0.0"
+version = "1.0.1"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(8))
@@ -20,12 +20,15 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 }
 
+val pluginProperties = mapOf(
+    "version" to project.version.toString(),
+    "description" to project.description.orEmpty()
+)
+
 tasks.processResources {
     filteringCharset = "UTF-8"
+    inputs.properties(pluginProperties)
     filesMatching("plugin.yml") {
-        expand(
-            "version" to project.version,
-            "description" to project.description.orEmpty()
-        )
+        expand(pluginProperties)
     }
 }
